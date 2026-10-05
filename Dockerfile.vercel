@@ -1,0 +1,13 @@
+FROM eclipse-temurin:21-jdk-alpine AS build
+WORKDIR /src
+COPY .deploy /bundle
+RUN cat /bundle/bundle.part* | base64 -d | tar -xz -C /src
+RUN mkdir -p library/bin &&     find library/src -name '*.java' -print0 | xargs -0 javac --add-modules jdk.httpserver -encoding UTF-8 -d library/bin
+
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY --from=build /src/library/bin ./library/bin
+COPY --from=build /src/web ./web
+ENV JAVA_TOOL_OPTIONS="-Dfile.encoding=UTF-8"
+EXPOSE 3000
+CMD ["sh", "-c", "java --add-modules jdk.httpserver -cp library/bin Main ${PORT:-3000} web"]
